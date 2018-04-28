@@ -1,0 +1,7 @@
+#cloud-config
+password: {{ 9999999999999999999999 | random | to_uuid }}
+ssh_pwauth: True
+chpasswd: { expire: False }
+
+ssh_authorized_keys:
+  - {{ virt_setup_ssh_authorized_keys }} 

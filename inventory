@@ -1,0 +1,12 @@
+[virt]
+localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3
+
+[instances]
+atomic001
+atomic002
+atomic003
+
+[instances:vars]
+virt_setup_ram=512
+virt_setup_vcpu=1
+virt_setup_template="/var/lib/libvirt/images/Fedora-Atomic-27-20180419.0.x86_64.qcow2"

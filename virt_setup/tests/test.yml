@@ -1,0 +1,5 @@
+---
+- hosts: instances
+  remote_user: root
+  roles:
+    - virt_setup

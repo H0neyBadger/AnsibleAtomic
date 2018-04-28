@@ -1,0 +1,6 @@
+---
+
+domain: "home.lab"
+virt_setup_libvirt_dir: "/var/lib/libvirt/images/"
+virt_setup_ssh_authorized_keys: "My base64 ssh public key"
+

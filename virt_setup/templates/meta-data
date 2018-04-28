@@ -1,0 +1,2 @@
+instance-id: {{ virt_setup_instance_id }}
+local-hostname: {{ virt_setup_local_hostname }}

@@ -1,0 +1,64 @@
+---
+# tasks file for virt_setup
+
+# role based on http://www.projectatomic.io/docs/quickstart/
+- name: Set facts 
+  set_fact:
+    virt_setup_instance_id : "{{ inventory_hostname }}"
+    virt_setup_local_hostname : "{{ inventory_hostname }}.{{ domain }}"
+    workspace: "{{ virt_setup_libvirt_dir }}/{{ inventory_hostname }}"
+    hypervisor: "{{ groups['virt'] |random }}"
+    guest_disk: "{{ inventory_hostname }}.qcow2"
+
+- name: Create VM working dir
+  file:
+    path: "{{ workspace }}"
+    state: directory
+    owner: qemu
+    group: qemu
+    mode: 0750
+  become: true
+  delegate_to: "{{ hypervisor }}"
+
+- name: Prep the cloud-init source
+  template:
+    dest: "{{ workspace }}"
+    src: "{{ item }}"
+  with_items:
+    - "meta-data"
+    - "user-data"
+  become: true
+  delegate_to: "{{ hypervisor }}"
+
+- name: Prep the cloud-init ISO
+  command: "genisoimage -output init.iso -volid cidata -joliet -rock user-data meta-data"
+  args:
+    chdir: "{{ workspace }}"
+    creates: "{{ workspace }}/init.iso"
+  become: true
+  delegate_to: "{{ hypervisor }}"
+
+- name: Prep the guest main disk
+  command: "cp {{ virt_setup_template }} {{ workspace }}/{{ guest_disk }}"
+  args:
+    chdir: "{{ workspace }}"
+    creates: "{{ guest_disk }}"
+  become: true
+  delegate_to: "{{ hypervisor }}"
+
+- name: Create the Atomic host virtual machine
+  command: >
+    virt-install --name "{{ inventory_hostname }}" \
+      --description 'Fedora Atomic Host' \
+      --ram {{ virt_setup_ram }} \
+      --vcpus {{ virt_setup_vcpu }} \
+      --disk path={{ workspace }}/{{ guest_disk }} \
+      --os-type linux \
+      --os-variant fedora25 \
+      --network bridge=virbr0 \
+      --cdrom {{ workspace }}/init.iso \
+      --noautoconsole
+  become: true
+  delegate_to: "{{ hypervisor }}"
+
+  
