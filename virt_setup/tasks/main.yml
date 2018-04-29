@@ -9,6 +9,8 @@
     workspace: "{{ virt_setup_libvirt_dir }}/{{ inventory_hostname }}"
     hypervisor: "{{ groups['hypervisors'] |random }}"
     guest_disk: "{{ inventory_hostname }}.qcow2"
+  tags:
+    - always
 
 - name: Create VM working dir
   file:
@@ -19,6 +21,8 @@
     mode: 0750
   become: true
   delegate_to: "{{ hypervisor }}"
+  tags:
+    - build
 
 - name: Prep the cloud-init source
   template:
@@ -29,6 +33,8 @@
     - "user-data"
   become: true
   delegate_to: "{{ hypervisor }}"
+  tags:
+    - build
 
 - name: Prep the cloud-init ISO
   command: "genisoimage -output init.iso -volid cidata -joliet -rock user-data meta-data"
@@ -37,6 +43,8 @@
     creates: "{{ workspace }}/init.iso"
   become: true
   delegate_to: "{{ hypervisor }}"
+  tags:
+    - build
 
 - name: Prep the guest main disk
   command: "cp {{ virt_setup_template }} {{ workspace }}/{{ guest_disk }}"
@@ -45,6 +53,8 @@
     creates: "{{ guest_disk }}"
   become: true
   delegate_to: "{{ hypervisor }}"
+  tags:
+    - build
 
 - name: Create the Atomic host virtual machine
   command: >
@@ -60,5 +70,7 @@
       --noautoconsole
   become: true
   delegate_to: "{{ hypervisor }}"
-
+  tags:
+    - vm
+      
   
