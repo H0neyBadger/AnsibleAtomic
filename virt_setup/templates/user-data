@@ -4,4 +4,8 @@ ssh_pwauth: True
 chpasswd: { expire: False }
 
 ssh_authorized_keys:
-  - {{ virt_setup_ssh_authorized_keys }} 
+  - {{ virt_setup_ssh_authorized_keys }}
+
+# Workaroud to refresh the hostname from the DHCP request 
+runcmd:
+  - [ systemctl, restart, NetworkManager.service ]
