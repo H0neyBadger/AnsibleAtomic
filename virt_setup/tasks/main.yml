@@ -7,7 +7,7 @@
     virt_setup_instance_id : "{{ inventory_hostname }}"
     virt_setup_local_hostname : "{{ inventory_hostname }}.{{ domain }}"
     workspace: "{{ virt_setup_libvirt_dir }}/{{ inventory_hostname }}"
-    hypervisor: "{{ groups['virt'] |random }}"
+    hypervisor: "{{ groups['hypervisors'] |random }}"
     guest_disk: "{{ inventory_hostname }}.qcow2"
 
 - name: Create VM working dir

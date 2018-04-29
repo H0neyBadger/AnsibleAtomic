@@ -1,0 +1,39 @@
+---
+# tasks file for virt_destroy
+
+
+- name: Hard reset VM from virsh
+  command: "virsh destroy {{ item | quote }}"
+  register: cmd
+  changed_when: cmd.rc == 0
+  failed_when: >-
+   not(
+     cmd.rc == 0 or (
+       cmd.rc == 1 and (
+         cmd.stderr.find('error: Domain not found: no domain with matching name')
+         or cmd.stderr.find('error: Requested operation is not valid: domain is not running')
+       )
+     )
+   )
+  loop: "{{ groups['instances'] }}"
+  become: true
+
+- name: Undefine VM from virsh
+  command: "virsh undefine {{ item | quote }}"
+  register: cmd
+  changed_when: cmd.rc == 0
+  failed_when: >-
+    not(
+      cmd.rc == 0 or 
+      (cmd.rc == 1 and cmd.stderr.find('error: Domain not found: no domain with matching name'))
+    )
+  loop: "{{ groups['instances'] }}"
+  become: true
+
+- name: Remove VM from disk
+  file:
+    state: absent
+    path: "{{ virt_setup_libvirt_dir }}/{{ item }}"
+  loop: "{{ groups['instances'] }}"
+  become: true
+
