@@ -1,0 +1,78 @@
+---
+# tasks file for docker_disk
+
+- name: Set play facts
+  set_fact:
+    docker_disk_name : "vdb"
+  tags: 
+    - always
+# 
+# http://www.projectatomic.io/docs/quickstart/
+- name: Add guest 2nd drive
+  command: "qemu-img create -f qcow2 {{ workspace | quote }}/{{ docker_disk_name | quote }}-{{ guest_disk | quote }} 8G"
+  args:
+    chdir: "{{ workspace }}"
+    creates: "{{ docker_disk_name }}-{{ guest_disk }}"
+  become: true
+  delegate_to: "{{ hypervisor }}"
+  tags:
+    - build
+
+- name: Attach the disk to the VM from the host
+  command: |
+    virsh attach-disk {{ inventory_hostname }} \
+      --source "{{ workspace | quote }}/{{ docker_disk_name | quote }}-{{ guest_disk | quote }}" \
+      --target "{{ docker_disk_name | quote }}" \
+      --targetbus "virtio" \
+      --driver "qemu" --subdriver "qcow2" \
+      --persistent
+  become: true
+  delegate_to: "{{ hypervisor }}"
+  tags:
+    - build
+
+- name: Check new disk from VM 
+  command: "fdisk -l /dev/{{ docker_disk_name | quote }}"
+  become: true
+  tags:
+    - build
+
+
+- name: Configure Docker new drive device
+  lineinfile:
+     state: present
+     path: /etc/sysconfig/docker-storage-setup
+     regexp: 'DEVS[\t ]*='
+     line: 'DEVS="/dev/{{ docker_disk_name | quote }}"'
+  become: true
+  tags: 
+    - docker-storage-setup
+
+#- name: Configure Docker new drive device size
+#  lineinfile:
+#     state: present
+#     path: /etc/sysconfig/docker-storage-setup
+#     regexp: 'ROOT_SIZE[\t ]*='
+#     line: 'ROOT_SIZE=4G'
+#  become: true
+#  tags:
+#    - docker-storage-setup
+
+# docker-storage-setup add-dev docker-storage-setup /dev/vdb
+- name: Check new disk from VM 
+  command: "docker-storage-setup"
+  register: docker_storage_setup
+  become: true
+  tags:
+    - docker-storage-setup
+
+- debug: var=docker_storage_setup
+
+- name: Extend FS with xfs_growfs 
+  command: "xfs_growfs /"
+  become: true
+  tags:
+    - docker-storage-setup
+
+
+
