@@ -20,3 +20,9 @@
         name: docker_disk
       tags:
         - docker_disk
+
+    - import_role:
+        name: docker_registry
+      when: "'docker_registries' in group_names"
+      tags:
+        - docker_registry

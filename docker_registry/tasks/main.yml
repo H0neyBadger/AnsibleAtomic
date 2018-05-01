@@ -1,0 +1,52 @@
+---
+# tasks file for docker_registry
+
+# http://www.projectatomic.io/docs/gettingstarted/
+# Local Docker registry
+- name: Create Local Docker registry
+  command: |
+    docker create -p 5000:5000 \
+      -v /var/lib/local-registry:/var/lib/registry \
+      -e REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY=/var/lib/registry \
+      -e REGISTRY_PROXY_REMOTEURL=https://registry-1.docker.io \
+      --name=local-registry registry:2
+  register: cmd
+  changed_when: cmd.rc == 0
+  failed_when: >
+    not (cmd.rc == 0 or 
+    (cmd.rc == 1 and cmd.stderr.find("is already in use by container")))
+  become: true
+
+- name: Create Docker registry path
+  file:
+    path: /var/lib/local-registry
+    state: directory
+    mode: 0755
+    setype: svirt_sandbox_file_t
+  become: true
+
+- name: Create Docker registry service
+  copy:
+    dest: /etc/systemd/system/local-registry.service
+    content: |
+      [Unit]
+      Description=Local Docker Mirror registry cache
+      Requires=docker.service
+      After=docker.service
+      
+      [Service]
+      Restart=on-failure
+      RestartSec=10
+      ExecStart=/usr/bin/docker start -a %p
+      ExecStop=-/usr/bin/docker stop -t 2 %p
+      
+      [Install]
+      WantedBy=multi-user.target
+  become: true
+
+- name: Start Local Docker registry
+  service: 
+    name: local-registry
+    state: started
+    enabled: yes
+  become: true
