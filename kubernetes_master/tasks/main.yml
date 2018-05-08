@@ -1,0 +1,139 @@
+---
+# tasks file for kubernetes_master
+
+- name: declare vars 
+  set_fact:
+    download_dir: '/root/'
+    easyrsa_root: '/root/easy-rsa-master/easyrsa3/'
+
+- name: Create directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: 0755
+  become: true
+  with_items:
+    - /etc/etcd/
+    - /etc/kubernetes/certs
+  tags:
+    - always
+
+- name: Configure etcd
+  copy:
+    dest: /etc/etcd/etcd.conf
+    content: |
+      ETCD_LISTEN_CLIENT_URLS="http://0.0.0.0:2379,http://0.0.0.0:4001"
+      ETCD_ADVERTISE_CLIENT_URLS="http://0.0.0.0:2379,http://0.0.0.0:4001"
+  become: true 
+
+- name: Download, unpack, and the patched version of easyrsa3
+  unarchive:
+    src: https://storage.googleapis.com/kubernetes-release/easy-rsa/easy-rsa.tar.gz
+    dest: "{{ download_dir }}"
+    remote_src: yes
+  become: true
+
+- name: Init and Generate easyrsa3 CA
+  command: "{{ item }}"
+  args:
+    chdir: "{{ easyrsa_root }}"
+    creates: "{{ easyrsa_root }}/pki/private/server.key"
+  environment:
+    PATH: '{{ easyrsa_root }}:{{ ansible_env.PATH }}'
+  become: true
+  register: cmd
+  failed_when: >
+    not (cmd.rc == 0 or 
+    (cmd.rc == 1 and cmd.stderr.find('You are about to remove the EASYRSA_PKI at')))
+  with_items:
+    # - "echo $PATH" FIXMI bug ?
+    - './easyrsa init-pki'
+    - './easyrsa --batch "--req-cn={{ inventory_hostname }}@`date +%s`" build-ca nopass'
+    - './easyrsa --subject-alt-name="DNS:{{ ansible_host }}" build-server-full server nopass'
+
+
+- name: Copy ssl keys
+  copy:
+    remote_src: yes
+    src: "{{ easyrsa_root }}/{{ item }}"
+    dest: /etc/kubernetes/certs
+    owner: kube
+    group: kube
+    mode: u=rw,g=r,o-rwx
+  become: true
+  with_items:
+    - pki/ca.crt
+    - pki/issued/server.crt
+    - pki/private/server.key
+
+- name: "Enable the dynamic CA configuration feature"
+  command: "update-ca-trust enable"
+  become: true
+
+- name : "Copy the CA certificate to the directory"
+  copy:
+    remote_src: yes
+    src: "{{ easyrsa_root }}/pki/ca.crt"
+    dest: "/etc/pki/ca-trust/source/anchors/kubernetes.pem"
+  become: true
+
+- name: "Extract and add the CA certificate to the list of trusted CA's"
+  command: "update-ca-trust extract"
+  become: true
+ 
+- name: Common service configurations
+  copy: 
+    dest: /etc/kubernetes/config
+    content: |
+      # Comma separated list of nodes in the etcd cluster
+      KUBE_ETCD_SERVERS="--etcd_servers=http://{{ ansible_host }}:2379"
+      
+      # How the controller-manager, scheduler, and proxy find the kube-apiserver
+      #KUBE_MASTER="--master=https://{{ ansible_host }}:6443"
+      KUBE_MASTER="--master=http://{{ ansible_host }}:8080"
+    owner: kube
+    group: kube
+    mode: u=rw,g=r,o-rwx
+  become: true
+
+- name: Common service configurations
+  copy: 
+    dest: /etc/kubernetes/apiserver
+    content: |
+      # The address on the local server to listen to.
+      #KUBE_API_ADDRESS="--address=0.0.0.0"
+      KUBE_API_ADDRESS="--bind-address=0.0.0.0 --insecure-bind-address=0.0.0.0"
+
+      # Address range to use for services
+      #KUBE_SERVICE_ADDRESSES="--portal_net=10.254.0.0/16"
+      KUBE_SERVICE_ADDRESSES="--service-cluster-ip-range=10.254.0.0/16"
+
+      # Add your own!
+      KUBE_API_ARGS="--tls-cert-file=/etc/kubernetes/certs/server.crt --tls-private-key-file=/etc/kubernetes/certs/server.key --client-ca-file=/etc/kubernetes/certs/ca.crt --service-account-key-file=/etc/kubernetes/certs/server.crt"
+    owner: kube
+    group: kube
+    mode: u=rw,g=r,o-rwx
+  become: true
+
+- name: Install system containers for master nodes (this may take a while)
+  command: "atomic install --system --system-package=no --name {{ item.name }} {{ item.registry }}"
+  become: true
+  with_items:
+    - { name: "kube-apiserver", registry: "registry.fedoraproject.org/f27/kubernetes-apiserver" }
+    - { name: "kube-controller-manager", registry: "registry.fedoraproject.org/f27/kubernetes-controller-manager" }
+    - { name: "kube-scheduler", registry: "registry.fedoraproject.org/f27/kubernetes-scheduler" }
+    - { name: "etcd", registry: "registry.fedoraproject.org/f27/etcd" }
+    - { name: "flanneld", registry: "registry.fedoraproject.org/f27/flannel" }
+
+- name: Enable and start the Kubernetes services
+  service:
+    name: "{{ item }}"
+    state: restarted
+    enabled: yes
+  become: yes
+  with_items: 
+    - etcd
+    - kube-apiserver 
+    - kube-controller-manager 
+    - kube-scheduler
+
