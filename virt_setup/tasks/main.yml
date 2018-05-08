@@ -58,14 +58,14 @@
 
 - name: Create the Atomic host virtual machine
   command: >
-    virt-install --name "{{ inventory_hostname }}" \
+    virt-install --name "{{ inventory_hostname | quote }}" \
       --description 'Fedora Atomic Host' \
-      --ram {{ virt_setup_ram }} \
-      --vcpus {{ virt_setup_vcpu }} \
-      --disk path={{ workspace }}/{{ guest_disk }} \
+      --ram "{{ virt_setup_ram | quote }}" \
+      --vcpus "{{ virt_setup_vcpu | quote }}" \
+      --disk path="{{ workspace | quote }}/{{ guest_disk | quote }}" \
       --os-type linux \
       --os-variant fedora25 \
-      --network bridge=virbr0 \
+      --network bridge="{{ virt_setup_bridge | quote }}" \
       --cdrom {{ workspace }}/init.iso \
       --noautoconsole
   become: true

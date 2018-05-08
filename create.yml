@@ -26,3 +26,10 @@
       when: "'docker_registries' in group_names"
       tags:
         - docker_registry
+
+    - import_role:
+        name: kubernetes_master
+      when: "'kubernetes_master' in group_names"
+      tags:
+        - kubernetes_master
+

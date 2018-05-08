@@ -9,6 +9,9 @@ atomic003 ansible_host=atomic003.home.lab
 [docker_registries]
 atomic001
 
+[kubernetes_master]
+atomic001
+
 [instances:vars]
 ansible_user=fedora
 virt_setup_ram=512
