@@ -33,3 +33,9 @@
       tags:
         - kubernetes_master
 
+    - import_role:
+        name: atomic_nodes
+      when: "'instances' in group_names and 'kubernetes_master' not in group_names"
+      tags:
+        - atomic_nodes
+

@@ -1,0 +1,96 @@
+---
+# tasks file for atomic_nodes
+
+- name: Check kubernetes group
+  assert:
+    that:
+      - (groups['kubernetes_master'] | length) == 1
+  tags:
+    - always
+
+- name: declare vars
+  set_fact:
+    kubernetes_master_inventory_name: "{{ groups['kubernetes_master'][0] }}"
+  tags:
+    - always
+
+- name: Get kubernetes_master FQDN
+  set_fact:
+    kubernetes_master: "{{ hostvars[kubernetes_master_inventory_name]['ansible_host'] }}"
+  tags:
+    - always
+
+- name: Create directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: 0755
+  become: true
+  with_items:
+    - /etc/kubernetes
+  tags:
+    - always
+
+- name: Configuring Docker to use the cluster registry cache
+  copy:
+    dest: /etc/sysconfig/docker
+    content: |
+      OPTIONS='--registry-mirror=http://{{ kubernetes_master }}:5000 --selinux-enabled --log-driver=journald'
+  become: true
+
+- name: Configuring Docker to use the Flannel overlay
+  copy:
+    dest: /etc/sysconfig/flanneld
+    content: |
+      # etcd url location.  Point this to the server where etcd runs
+      FLANNEL_ETCD_ENDPOINTS="http://{{ kubernetes_master }}:2379"
+      
+      # etcd config key.  This is the configuration key that flannel queries
+      # For address range assignment
+      FLANNEL_ETCD_PREFIX="/atomic.io/network"
+  become: true
+
+- name: Configuring Kubelet nodes
+  copy:
+    dest: /etc/kubernetes/kubelet
+    content: |
+      # The address for the info server to serve on (set to 0.0.0.0 or "" for all interfaces)
+      KUBELET_ADDRESS="--address=0.0.0.0"
+      
+      # You may leave this blank to use the actual hostname
+      #KUBELET_HOSTNAME="--hostname_override=192.168.122.11"
+      KUBELET_HOSTNAME=""
+
+      # location of the api-server
+      KUBELET_API_SERVER="--api_servers=http://{{ kubernetes_master }}:8080"
+  become: true
+
+- name: Configuring Kubernetes nodes
+  copy:
+    dest: /etc/kubernetes/config
+    content: |
+      # How the controller-manager, scheduler, and proxy find the kube-apiserver
+      KUBE_MASTER="--master=http://{{ kubernetes_master }}:8080"
+  become: true
+
+- name: Install system containers for atomic nodes (this may take a while)
+  command: "atomic install --system --system-package=no --name {{ item.name }} {{ item.registry }}"
+  become: true
+  with_items:
+    - { name: "kubernetes-kubelet", registry: "registry.fedoraproject.org/f27/kubernetes-kubelet" }
+    - { name: "kubernetes-proxy", registry: "registry.fedoraproject.org/f27/kubernetes-proxy" }
+    - { name: "flanneld", registry: "registry.fedoraproject.org/f27/flannel" }
+
+- name: Enable and start the Kubernetes services
+  service:
+    name: "{{ item }}"
+    state: restarted
+    enabled: yes
+  become: yes
+  with_items: 
+    - kubernetes-kubelet 
+    - kubernetes-proxy
+    - flanneld
+
+
+
