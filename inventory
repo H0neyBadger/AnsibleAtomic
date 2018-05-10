@@ -5,6 +5,7 @@ localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3
 atomic001 ansible_host=atomic001.home.lab
 atomic002 ansible_host=atomic002.home.lab
 atomic003 ansible_host=atomic003.home.lab
+atomic004 ansible_host=atomic004.home.lab
 
 [docker_registries]
 atomic001
@@ -14,6 +15,6 @@ atomic001
 
 [instances:vars]
 ansible_user=fedora
-virt_setup_ram=512
-virt_setup_vcpu=1
-virt_setup_template="/var/lib/libvirt/images/Fedora-Atomic-27-20180419.0.x86_64.qcow2"
+virt_setup_ram=768
+virt_setup_vcpu=2
+virt_setup_template="/var/lib/libvirt/images/Fedora-AtomicHost-28-20180425.0.x86_64.qcow2"
