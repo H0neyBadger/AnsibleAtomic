@@ -4,3 +4,9 @@ domain: "home.lab"
 virt_setup_libvirt_dir: "/var/lib/libvirt/images/"
 virt_setup_ssh_authorized_keys: "My base64 ssh public key"
 
+kubernetes_master_inventory_name: "{{ groups['kubernetes_master'][0] }}"
+kubernetes_master: "{{ hostvars[kubernetes_master_inventory_name]['ansible_host'] }}"
+
+kubernetes_master_http: "http://{{ kubernetes_master }}:8080"
+kubernetes_master_https: "https://{{ kubernetes_master }}:6443"
+etcd_server_http: "http://{{ kubernetes_master }}:2379"

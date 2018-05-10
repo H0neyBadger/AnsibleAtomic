@@ -1,2 +1,16 @@
 ---
 # vars file for atomic_nodes
+master_kubeconfig:
+  kind: Config
+  clusters:
+  - name: local
+    cluster:
+      server: "{{ kubernetes_master_http }}"
+  users:
+  - name: kubelet
+  contexts:
+  - context:
+      cluster: local
+      user: kubelet
+    name: kubelet-context
+  current-context: kubelet-context

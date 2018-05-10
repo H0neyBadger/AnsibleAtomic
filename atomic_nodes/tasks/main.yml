@@ -1,25 +1,6 @@
 ---
 # tasks file for atomic_nodes
 
-- name: Check kubernetes group
-  assert:
-    that:
-      - (groups['kubernetes_master'] | length) == 1
-  tags:
-    - always
-
-- name: declare vars
-  set_fact:
-    kubernetes_master_inventory_name: "{{ groups['kubernetes_master'][0] }}"
-  tags:
-    - always
-
-- name: Get kubernetes_master FQDN
-  set_fact:
-    kubernetes_master: "{{ hostvars[kubernetes_master_inventory_name]['ansible_host'] }}"
-  tags:
-    - always
-
 - name: Create directories
   file:
     path: "{{ item }}"
@@ -50,6 +31,13 @@
       FLANNEL_ETCD_PREFIX="/atomic.io/network"
   become: true
 
+# https://kubernetes.io/docs/getting-started-guides/fedora/fedora_manual_config/
+- name: Create Kublet config file
+  copy:
+    dest: /etc/kubernetes/master-kubeconfig.yaml 
+    content: "{{ master_kubeconfig | to_nice_yaml(explicit_start=True, explicit_end=True) }}"
+  become: true 
+  
 - name: Configuring Kubelet nodes
   copy:
     dest: /etc/kubernetes/kubelet
@@ -59,10 +47,11 @@
       
       # You may leave this blank to use the actual hostname
       #KUBELET_HOSTNAME="--hostname_override=192.168.122.11"
-      KUBELET_HOSTNAME=""
+      KUBELET_HOSTNAME="--hostname_override={{ inventory_hostname }}"
 
       # location of the api-server
-      KUBELET_API_SERVER="--api_servers=http://{{ kubernetes_master }}:8080"
+      # KUBELET_API_SERVER="--api_servers=http://{{ kubernetes_master }}:8080"
+      KUBELET_ARGS="--cgroup-driver=systemd --kubeconfig=/etc/kubernetes/master-kubeconfig.yaml --require-kubeconfig"
   become: true
 
 - name: Configuring Kubernetes nodes
