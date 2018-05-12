@@ -60,6 +60,7 @@
     content: |
       # How the controller-manager, scheduler, and proxy find the kube-apiserver
       KUBE_MASTER="--master=http://{{ kubernetes_master }}:8080"
+    force: no
   become: true
 
 - name: Install system containers for atomic nodes (this may take a while)
