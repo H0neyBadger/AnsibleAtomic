@@ -1,8 +1,59 @@
+# AnsibleAtomic
+
+A collection of ansible roles to:
+* Creates VMs using virt-install (kvm)
+* Extends VMs disk space
+* Create a private docker registry
+* Installs kubernetes nodes/master
+* Sets etcd & flannel network
+
+This playbook is based on steps defined in :
+* http://www.projectatomic.io/docs/quickstart/
+* http://www.projectatomic.io/docs/gettingstarted/
+
+WARNING: This job is ***insecure***. So do not use if for production purpose !
 
 # Requirements
 
 * virt-install
 * a valid DNS resolution
+* a valid SSH connection (from your ansible host)
+
+# Create an atomic cluster
+
+Edit the default [inventory](inventory) and verify the path of your atomic image ***virt_setup_template***
+```
+[hypervisors]
+localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3
+
+[instances]
+atomic001 ansible_host=atomic001.home.lab
+atomic002 ansible_host=atomic002.home.lab
+atomic003 ansible_host=atomic003.home.lab
+atomic004 ansible_host=atomic004.home.lab
+
+[docker_registries]
+atomic001
+
+[kubernetes_master]
+atomic001
+
+[instances:vars]
+ansible_user=fedora
+virt_setup_ram=768
+virt_setup_vcpu=2
+virt_setup_template="/var/lib/libvirt/images/Fedora-AtomicHost-28-20180425.0.x86_64.qcow2"
+```
+
+Also, edit the [group_vars/all/main.yml](group_vars/all/main.yml) to edit the ***virt_setup_ssh_authorized_keys*** with your ```ssh public key``` 
+
+
+Run the ***create*** playbook
+```bash
+ansible-playbook ./create.yml -i inventory -v
+# to delete your cluster :
+# ansible-playbook ./destroy.yml -i inventory -v
+```
 
 ## Networking
 
@@ -46,3 +97,10 @@ then use the libvirt's dnsmasq server as local DNS for your domain
 ```
 server=/home.lab/192.168.100.1
 ```
+
+# Test app 
+from your atomic master
+```
+kubectl run kubernetes-bootcamp --image=gcr.io/google-samples/kubernetes-bootcamp:v1 --port=8080
+```
+

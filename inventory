@@ -4,7 +4,7 @@ localhost ansible_connection=local ansible_python_interpreter=/usr/bin/python3
 [instances]
 atomic001 ansible_host=atomic001.home.lab
 atomic002 ansible_host=atomic002.home.lab
-#atomic003 ansible_host=atomic003.home.lab
+atomic003 ansible_host=atomic003.home.lab
 #atomic004 ansible_host=atomic004.home.lab
 
 [docker_registries]
