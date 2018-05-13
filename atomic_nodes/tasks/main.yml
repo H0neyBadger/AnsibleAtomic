@@ -82,5 +82,26 @@
     - kubernetes-proxy
     - flanneld
 
+- name: Wait until flanneld create the docker Bridge config
+  wait_for:
+    path: /run/flanneld/docker
+    search_regex: "DOCKER_OPT_BIP"
+    timeout: 120
+    msg: "Please verify the flannel config 'journalctl -b0 -u flanneld'"
 
+# releoad the docker daemon config in order to load flannel config 
+# /etc/systemd/system/docker.service.d/flanneld.conf
+# [Service]
+# EnvironmentFile=-/run/flanneld/docker
+#
+- name: Reload systemd config 
+  command: "systemctl daemon-reload"
+  become: true
 
+- name: Restart Docker services
+  service:
+    name: "docker"
+    state: restarted
+    enabled: yes
+  become: yes
+ 

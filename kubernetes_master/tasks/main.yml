@@ -151,6 +151,14 @@
       }
     status_code: 200, 201
     return_content: yes
-    HEADER_Content-Type: "application/x-www-form-urlencoded"
+    headers:
+      Content-Type: "application/x-www-form-urlencoded"
 
+
+- name: Enable and start the flanneld services
+  service:
+    name: flanneld
+    state: restarted
+    enabled: yes
+  become: yes
 
