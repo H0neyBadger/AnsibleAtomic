@@ -39,3 +39,9 @@
       tags:
         - atomic_nodes
 
+    - import_role:
+        name: fix_atomic
+      when: "'instances' in group_names"
+      tags:
+        - fix_atomic
+

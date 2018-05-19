@@ -1,0 +1,48 @@
+---
+# tasks file for fix_atomic
+
+# sometimes the kubernetes-apiserver may start before the network
+# Unable to find suitable network address.error='No default routes.'. Try to set the Advertise ...
+# kube-apiserver.service: Main process exited, code=exited, status=1/FAILURE
+# kube-apiserver.service: Failed with result 'exit-code'.
+
+- name: Workaround to kube-apiserver.service network boot
+  ini_file:
+    path: /etc/systemd/system/kube-apiserver.service
+    create: no
+    section: Unit
+    option: After
+    value: network-online.target
+  register: apiserver
+  become: true
+  failed_when: apiserver["rc"] is defined and apiserver["rc"] != 257
+
+# Fix network 
+- name: Workaround to flannel iptables FORWARD rule
+  copy: 
+    dest: /etc/systemd/system/custom_iptables.service
+    content: |
+      [Unit]
+      Description=Custom Apply flannel iptables rules
+      After=network.target kubernetes-proxy.service
+      
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/sbin/iptables -A FORWARD -i flannel.1 ! -o flannel.1 -j ACCEPT
+      ExecStart=/usr/sbin/iptables -A FORWARD -o flannel.1 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+      
+      [Install]
+      WantedBy=multi-user.target
+  become: true
+
+- name: Reload systemd config
+  command: "systemctl daemon-reload"
+  become: true
+
+- name: Start Docker services
+  service:
+    name: "custom_iptables"
+    state: started
+    enabled: yes
+  become: yes
+
