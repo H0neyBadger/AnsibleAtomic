@@ -99,8 +99,13 @@ server=/home.lab/192.168.100.1
 ```
 
 # Test app 
-from your atomic master
+from your atomic master (https://kubernetes.io/docs/tutorials/kubernetes-basics)
 ```
 kubectl run kubernetes-bootcamp --image=gcr.io/google-samples/kubernetes-bootcamp:v1 --port=8080
+kubectl get pods
+# from another console (kubectl proxy)
+curl "http://localhost:8001/api/v1/namespaces/default/pods/${POD_NAME}/proxy/" -v
+kubectl expose deployment/kubernetes-bootcamp --type="NodePort" --port 8080
+kubectl describe services/kubernetes-bootcamp
 ```
 
