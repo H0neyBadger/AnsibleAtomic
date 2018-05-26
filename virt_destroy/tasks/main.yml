@@ -30,6 +30,62 @@
   loop: "{{ groups['instances'] }}"
   become: true
 
+- name: Hard reset VM pool from virsh
+  command: "virsh pool-destroy {{ item | quote }}"
+  register: cmd
+  changed_when: cmd.rc == 0
+  failed_when: >-
+   not(
+     cmd.rc == 0 or (
+       cmd.rc == 1 and (
+         cmd.stderr.find('error: Domain not found: no domain with matching name')
+         or cmd.stderr.find('error: Requested operation is not valid: domain is not running')
+       )
+     )
+   )
+  loop: "{{ groups['instances'] }}"
+  become: true
+
+- name: Undefine VM pool from virsh
+  command: "virsh pool-undefine {{ item | quote }}"
+  register: cmd
+  changed_when: cmd.rc == 0
+  failed_when: >-
+    not(
+      cmd.rc == 0 or 
+      (cmd.rc == 1 and cmd.stderr.find('error: Domain not found: no domain with matching name'))
+    )
+  loop: "{{ groups['instances'] }}"
+  become: true
+
+
+- name: Remove VM's volumes
+  command: "virsh vol-delete {{ virt_setup_libvirt_dir }}/{{ item[0] | quote }}/{{ item[1] | quote }}"
+  register: cmd
+  changed_when: cmd.rc == 0
+  failed_when: >-
+    not(
+      cmd.rc == 0 or 
+      (cmd.rc == 1 and cmd.stderr.find('Storage volume not found: no storage vol with matching path'))
+    )
+  with_nested: 
+    - "{{ groups['instances'] }}"
+    - [ 'init.iso', "meta-data", "user-data"]
+  become: true
+
+- name: Remove VM's volumes
+  command: "virsh vol-delete {{ virt_setup_libvirt_dir }}/{{ item | quote }}/{{ item | quote }}.qcow2"
+  register: cmd
+  changed_when: cmd.rc == 0
+  failed_when: >-
+    not(
+      cmd.rc == 0 or 
+      (cmd.rc == 1 and cmd.stderr.find('Storage volume not found: no storage vol with matching path'))
+    )
+  with_items: 
+    - "{{ groups['instances'] }}"
+  become: true
+
 - name: Remove VM from disk
   file:
     state: absent
